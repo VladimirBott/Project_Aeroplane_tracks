@@ -3,7 +3,8 @@
 Объединяет работу с Nominatim и OpenSky API.
 """
 
-from typing import Optional, Dict, Any
+from typing import Any, Dict, Optional
+
 from .nominatim_client import NominatimAPI
 from .opensky_client import OpenSkyAPI
 
@@ -51,21 +52,21 @@ class AircraftDataFetcher:
             print(f"Не удалось получить координаты для страны: {country}")
             return None
 
-        coordinates = country_info['coordinates']
+        coordinates = country_info["coordinates"]
 
         # 2. Получаем данные о самолетах через OpenSky
         aircraft_data = self._opensky_client.get_aircraft_in_area(coordinates)
         if not aircraft_data:
             print(f"Не удалось получить данные о самолетах для страны: {country}")
             # Возвращаем хотя бы информацию о стране
-            aircraft_data = {'states': None}
+            aircraft_data = {"states": None}
 
         # 3. Формируем итоговый результат
         self._last_result = {
-            'country': country,
-            'coordinates': coordinates,
-            'country_info': country_info['country_info'],
-            'aircraft_data': aircraft_data
+            "country": country,
+            "coordinates": coordinates,
+            "country_info": country_info["country_info"],
+            "aircraft_data": aircraft_data,
         }
 
         return self._last_result
