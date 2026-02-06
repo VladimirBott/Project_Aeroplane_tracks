@@ -1,13 +1,14 @@
 from abc import ABC, abstractmethod
-from typing import Optional, Dict, Any
+from typing import Any, Dict, Optional
 
 
 class BaseAPI(ABC):
     """Базовый абстрактный класс для всех API клиентов."""
 
     @abstractmethod
-    def _connect_to_api(self, url: str, params: Optional[Dict] = None,
-                        headers: Optional[Dict] = None) -> Optional[Dict[str, Any]]:
+    def _connect_to_api(
+        self, url: str, params: Optional[Dict] = None, headers: Optional[Dict] = None
+    ) -> Optional[Dict[str, Any]]:
         """Приватный метод для подключения к API."""
         pass
 
