@@ -2,9 +2,11 @@
 Модуль для работы с OpenSky Network API.
 """
 
-from typing import Optional, Dict, Any, List
-from src.api.base_api import BaseAPI
+from typing import Any, Dict, List, Optional
+
 import requests
+
+from src.api.base_api import BaseAPI
 
 
 class OpenSkyAPI(BaseAPI):
@@ -17,10 +19,11 @@ class OpenSkyAPI(BaseAPI):
 
     def __init__(self) -> None:
         """Инициализация клиента OpenSky API."""
-        self._base_url: str = 'https://opensky-network.org/api/states/all'
+        self._base_url: str = "https://opensky-network.org/api/states/all"
 
-    def _connect_to_api(self, url: str, params: Optional[Dict] = None,
-                        headers: Optional[Dict] = None) -> Optional[Dict[str, Any]]:
+    def _connect_to_api(
+        self, url: str, params: Optional[Dict] = None, headers: Optional[Dict] = None
+    ) -> Optional[Dict[str, Any]]:
         """
         Приватный метод для подключения к OpenSky API.
 
@@ -33,19 +36,16 @@ class OpenSkyAPI(BaseAPI):
             Optional[Dict[str, Any]]: Ответ от API или None при ошибке
         """
         try:
-            response = requests.get(
-                url=url,
-                params=params,
-                headers=headers,
-                timeout=10
-            )
+            response = requests.get(url=url, params=params, headers=headers, timeout=10)
             response.raise_for_status()
             return response.json()
         except requests.exceptions.RequestException as e:
             print(f"Ошибка подключения к OpenSky API: {e}")
             return None
 
-    def get_data(self, lamin: str, lamax: str, lomin: str, lomax: str) -> Optional[Dict[str, Any]]:
+    def get_data(
+        self, lamin: str, lamax: str, lomin: str, lomax: str
+    ) -> Optional[Dict[str, Any]]:
         """
         Получение данных о самолетах в заданной области.
 
@@ -59,10 +59,10 @@ class OpenSkyAPI(BaseAPI):
             Optional[Dict[str, Any]]: Данные о самолетах или None
         """
         params: Dict[str, str] = {
-            'lamin': lamin,
-            'lamax': lamax,
-            'lomin': lomin,
-            'lomax': lomax,
+            "lamin": lamin,
+            "lamax": lamax,
+            "lomin": lomin,
+            "lomax": lomax,
         }
 
         return self._connect_to_api(self._base_url, params)
@@ -85,5 +85,5 @@ class OpenSkyAPI(BaseAPI):
             lamin=coordinates[0],
             lamax=coordinates[1],
             lomin=coordinates[2],
-            lomax=coordinates[3]
+            lomax=coordinates[3],
         )
