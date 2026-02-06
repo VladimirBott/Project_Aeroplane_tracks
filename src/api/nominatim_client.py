@@ -2,9 +2,11 @@
 Модуль для работы с OpenStreetMap Nominatim API.
 """
 
-from typing import Optional, Dict, Any
-from src.api.base_api import BaseAPI
+from typing import Any, Dict, Optional
+
 import requests
+
+from src.api.base_api import BaseAPI
 
 
 class NominatimAPI(BaseAPI):
@@ -17,10 +19,11 @@ class NominatimAPI(BaseAPI):
 
     def __init__(self) -> None:
         """Инициализация клиента Nominatim API."""
-        self._base_url: str = 'https://nominatim.openstreetmap.org/search'
+        self._base_url: str = "https://nominatim.openstreetmap.org/search"
 
-    def _connect_to_api(self, url: str, params: Optional[Dict] = None,
-                        headers: Optional[Dict] = None) -> Optional[Dict[str, Any]]:
+    def _connect_to_api(
+        self, url: str, params: Optional[Dict] = None, headers: Optional[Dict] = None
+    ) -> Optional[Dict[str, Any]]:
         """
         Приватный метод для подключения к Nominatim API.
 
@@ -33,15 +36,10 @@ class NominatimAPI(BaseAPI):
             Optional[Dict[str, Any]]: Ответ от API или None при ошибке
         """
         try:
-            response = requests.get(
-                url=url,
-                params=params,
-                headers=headers,
-                timeout=10
-            )
+            response = requests.get(url=url, params=params, headers=headers, timeout=10)
             response.raise_for_status()
             return response.json()
-        except requests.exceptions.RequestException as e:
+        except Exception as e:
             print(f"Ошибка подключения к Nominatim API: {e}")
             return None
 
@@ -55,11 +53,11 @@ class NominatimAPI(BaseAPI):
         Returns:
             Optional[Dict[str, Any]]: Данные о стране или None
         """
-        headers: Dict[str, str] = {'User-Agent': 'aviation-tracker/1.0'}
+        headers: Dict[str, str] = {"User-Agent": "aviation-tracker/1.0"}
         params: Dict[str, str | int] = {
-            'country': country,
-            'format': 'json',
-            'limit': 1,
+            "country": country,
+            "format": "json",
+            "limit": 1,
         }
 
         data = self._connect_to_api(self._base_url, params, headers)
@@ -84,12 +82,12 @@ class NominatimAPI(BaseAPI):
         if not country_data:
             return None
 
-        coordinates = country_data.get('boundingbox')
+        coordinates = country_data.get("boundingbox")
         if coordinates and len(coordinates) == 4:
             return {
-                'country': country,
-                'coordinates': coordinates,
-                'country_info': country_data
+                "country": country,
+                "coordinates": coordinates,
+                "country_info": country_data,
             }
 
         return None
