@@ -1,22 +1,30 @@
-from src.api import AircraftDataFetcher
+"""
+Основной модуль приложения Aviation Tracker.
+Точка входа в программу.
+"""
 
-# 1. Инициализация
-tracker = AircraftDataFetcher()
+import sys
+from src.interface import UserInterface
 
-# 2. Получение данных для разных стран
-countries = ["Germany", "France", "Italy", "Spain"]
 
-for country in countries:
-    print(f"\n=== Получаем данные для {country} ===")
-    data = tracker.get_aircraft_data(country)
+def main() -> None:
+    """
+    Основная функция - точка входа в программу.
+    """
+    try:
+        # Создаем и запускаем пользовательский интерфейс
+        ui = UserInterface()
+        ui.run()
 
-    if data:
-        aircraft_count = len(data['aircraft_data']['states'])
-        print(f"Страна: {data['country']}")
-        print(f"Самолетов в воздухе: {aircraft_count}")
+    except KeyboardInterrupt:
+        print("\n\n👋 Программа прервана пользователем")
+        sys.exit(0)
+    except Exception as e:
+        print(f"\n❌ Критическая ошибка: {e}")
+        import traceback
+        traceback.print_exc()
+        sys.exit(1)
 
-        # Пример конкретного самолета
-        if aircraft_count > 0:
-            first_plane = data['aircraft_data']['states'][0]
-            print(f"Пример: Рейс {first_plane[1].strip()}, "
-                  f"Высота: {first_plane[7]}м")
+
+if __name__ == "__main__":
+    main()
