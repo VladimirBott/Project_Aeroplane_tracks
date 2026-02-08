@@ -3,7 +3,8 @@
 """
 
 import unittest
-from typing import List, Any
+from typing import Any, List
+
 from src.models.aeroplanes import Aircraft
 
 
@@ -25,7 +26,7 @@ class TestAircraftCreation(unittest.TestCase):
             geo_altitude=10100.0,
             on_ground=False,
             squawk="1234",
-            spi=False
+            spi=False,
         )
 
         self.assertEqual(plane.icao24, "abcdef")
@@ -50,7 +51,7 @@ class TestAircraftCreation(unittest.TestCase):
             true_track=0.0,
             vertical_rate=0.0,
             geo_altitude=5000.0,
-            on_ground=True
+            on_ground=True,
         )
 
         self.assertEqual(plane.icao24, "123456")
@@ -71,7 +72,7 @@ class TestAircraftCreation(unittest.TestCase):
             true_track=None,  # Будет преобразовано в 0.0
             vertical_rate=None,  # Будет преобразовано в 0.0
             geo_altitude=None,  # Будет преобразовано в 0.0
-            on_ground=False
+            on_ground=False,
         )
 
         self.assertEqual(plane.icao24, "none12")
@@ -103,7 +104,7 @@ class TestAircraftValidation(unittest.TestCase):
                 true_track=0.0,
                 vertical_rate=0.0,
                 geo_altitude=1000.0,
-                on_ground=False
+                on_ground=False,
             )
         self.assertIn("ICAO24 должен быть 6 символов", str(context.exception))
 
@@ -121,7 +122,7 @@ class TestAircraftValidation(unittest.TestCase):
                 true_track=0.0,
                 vertical_rate=0.0,
                 geo_altitude=1000.0,
-                on_ground=False
+                on_ground=False,
             )
         self.assertIn("ICAO24 не может быть пустой строкой", str(context.exception))
 
@@ -139,7 +140,7 @@ class TestAircraftValidation(unittest.TestCase):
                 true_track=0.0,
                 vertical_rate=0.0,
                 geo_altitude=1000.0,
-                on_ground=False
+                on_ground=False,
             )
         self.assertIn("Долгота должна быть от -180 до 180", str(context.exception))
 
@@ -157,7 +158,7 @@ class TestAircraftValidation(unittest.TestCase):
                 true_track=0.0,
                 vertical_rate=0.0,
                 geo_altitude=1000.0,
-                on_ground=False
+                on_ground=False,
             )
         self.assertIn("Широта должна быть от -90 до 90", str(context.exception))
 
@@ -175,7 +176,7 @@ class TestAircraftValidation(unittest.TestCase):
                 true_track=0.0,
                 vertical_rate=0.0,
                 geo_altitude=50000.0,
-                on_ground=False
+                on_ground=False,
             )
         self.assertIn("Нереалистичная барометрическая высота", str(context.exception))
 
@@ -193,7 +194,7 @@ class TestAircraftValidation(unittest.TestCase):
                 true_track=0.0,
                 vertical_rate=0.0,
                 geo_altitude=-100.0,
-                on_ground=False
+                on_ground=False,
             )
         self.assertIn("Нереалистичная барометрическая высота", str(context.exception))
 
@@ -211,7 +212,7 @@ class TestAircraftValidation(unittest.TestCase):
                 true_track=0.0,
                 vertical_rate=0.0,
                 geo_altitude=1000.0,
-                on_ground=False
+                on_ground=False,
             )
         self.assertIn("Нереалистичная скорость", str(context.exception))
 
@@ -229,7 +230,7 @@ class TestAircraftValidation(unittest.TestCase):
                 true_track=0.0,
                 vertical_rate=0.0,
                 geo_altitude=1000.0,
-                on_ground=False
+                on_ground=False,
             )
         self.assertIn("Нереалистичная скорость", str(context.exception))
 
@@ -248,7 +249,7 @@ class TestAircraftValidation(unittest.TestCase):
                 vertical_rate=0.0,
                 geo_altitude=1000.0,
                 on_ground=False,
-                squawk="12ab"  # Не только цифры
+                squawk="12ab",  # Не только цифры
             )
         self.assertIn("Squawk должен быть 4 цифрами", str(context.exception))
 
@@ -267,7 +268,7 @@ class TestAircraftValidation(unittest.TestCase):
                 vertical_rate=0.0,
                 geo_altitude=1000.0,
                 on_ground=False,
-                squawk="123"  # Слишком короткий
+                squawk="123",  # Слишком короткий
             )
         self.assertIn("Squawk должен быть 4 цифрами", str(context.exception))
 
@@ -290,7 +291,7 @@ class TestAircraftProperties(unittest.TestCase):
             geo_altitude=10200.0,
             on_ground=False,
             squawk="7700",  # Аварийный код
-            spi=True
+            spi=True,
         )
 
     def test_velocity_conversion(self):
@@ -322,7 +323,7 @@ class TestAircraftProperties(unittest.TestCase):
             true_track=0.0,
             vertical_rate=-5.0,  # Отрицательная скорость
             geo_altitude=5000.0,
-            on_ground=False
+            on_ground=False,
         )
 
         self.assertTrue(descending_plane.is_descending())
@@ -342,7 +343,7 @@ class TestAircraftProperties(unittest.TestCase):
             true_track=0.0,
             vertical_rate=0.5,  # Маленькая скорость
             geo_altitude=5000.0,
-            on_ground=False
+            on_ground=False,
         )
 
         self.assertTrue(level_plane.is_level())
@@ -366,7 +367,7 @@ class TestAircraftProperties(unittest.TestCase):
             true_track=0.0,
             vertical_rate=0.0,
             geo_altitude=1000.0,
-            on_ground=False
+            on_ground=False,
         )
         self.assertEqual(slow_plane.get_speed_category(), "Медленно")
 
@@ -382,7 +383,7 @@ class TestAircraftProperties(unittest.TestCase):
             true_track=0.0,
             vertical_rate=0.0,
             geo_altitude=5000.0,
-            on_ground=False
+            on_ground=False,
         )
         self.assertEqual(cruise_plane.get_speed_category(), "Крейсерская")
 
@@ -398,7 +399,7 @@ class TestAircraftProperties(unittest.TestCase):
             true_track=0.0,
             vertical_rate=0.0,
             geo_altitude=5000.0,
-            on_ground=False
+            on_ground=False,
         )
         self.assertEqual(fast_plane.get_speed_category(), "Быстро")
 
@@ -419,7 +420,7 @@ class TestAircraftComparison(unittest.TestCase):
             true_track=0.0,
             vertical_rate=0.0,
             geo_altitude=1000.0,
-            on_ground=False
+            on_ground=False,
         )
 
         self.plane_high = Aircraft(
@@ -433,7 +434,7 @@ class TestAircraftComparison(unittest.TestCase):
             true_track=0.0,
             vertical_rate=0.0,
             geo_altitude=10000.0,
-            on_ground=False
+            on_ground=False,
         )
 
     def test_less_than(self):
@@ -478,7 +479,7 @@ class TestAircraftComparison(unittest.TestCase):
             true_track=0.0,
             vertical_rate=0.0,
             geo_altitude=1000.0,
-            on_ground=False
+            on_ground=False,
         )
         self.assertTrue(self.plane_low == plane_same)
 
@@ -501,23 +502,23 @@ class TestAircraftFromOpensky(unittest.TestCase):
     def test_from_opensky_valid(self):
         """Тест создания из валидных данных OpenSky."""
         opensky_data: List[Any] = [
-            "4b1812",        # 0: icao24
-            "SWR438A ",      # 1: callsign
-            "Switzerland",   # 2: origin_country
-            1766166618,      # 3: time_position
-            1766166618,      # 4: last_contact
-            -0.0168,         # 5: longitude
-            51.0888,         # 6: latitude
-            4267.2,          # 7: baro_altitude
-            False,           # 8: on_ground
-            189.7,           # 9: velocity
-            129.39,          # 10: true_track
-            14.63,           # 11: vertical_rate
-            None,            # 12: sensors
-            4282.44,         # 13: geo_altitude
-            "2061",          # 14: squawk
-            False,           # 15: spi
-            0                # 16: position_source
+            "4b1812",  # 0: icao24
+            "SWR438A ",  # 1: callsign
+            "Switzerland",  # 2: origin_country
+            1766166618,  # 3: time_position
+            1766166618,  # 4: last_contact
+            -0.0168,  # 5: longitude
+            51.0888,  # 6: latitude
+            4267.2,  # 7: baro_altitude
+            False,  # 8: on_ground
+            189.7,  # 9: velocity
+            129.39,  # 10: true_track
+            14.63,  # 11: vertical_rate
+            None,  # 12: sensors
+            4282.44,  # 13: geo_altitude
+            "2061",  # 14: squawk
+            False,  # 15: spi
+            0,  # 16: position_source
         ]
 
         plane = Aircraft.from_opensky_data(opensky_data)
@@ -535,7 +536,6 @@ class TestAircraftFromOpensky(unittest.TestCase):
         self.assertFalse(plane.on_ground)
         self.assertEqual(plane.squawk, "2061")
         self.assertFalse(plane.spi)
-
 
     def test_from_opensky_invalid(self):
         """Тест с неполными данными OpenSky."""
@@ -570,7 +570,7 @@ class TestAircraftMethods(unittest.TestCase):
             geo_altitude=5100.0,
             on_ground=False,
             squawk="4321",
-            spi=True
+            spi=True,
         )
 
     def test_to_dict(self):
@@ -578,25 +578,35 @@ class TestAircraftMethods(unittest.TestCase):
         data = self.plane.to_dict()
 
         self.assertIsInstance(data, dict)
-        self.assertEqual(data['icao24'], "dict12")
-        self.assertEqual(data['callsign'], "DICT01")
-        self.assertEqual(data['origin_country'], "Dictland")
-        self.assertEqual(data['longitude'], 10.0)
-        self.assertEqual(data['latitude'], 20.0)
-        self.assertEqual(data['baro_altitude'], 5000.0)
-        self.assertEqual(data['velocity'], 200.0)
-        self.assertEqual(data['true_track'], 45.0)
-        self.assertEqual(data['vertical_rate'], 2.5)
-        self.assertEqual(data['geo_altitude'], 5100.0)
-        self.assertEqual(data['on_ground'], False)
-        self.assertEqual(data['squawk'], "4321")
-        self.assertEqual(data['spi'], True)
+        self.assertEqual(data["icao24"], "dict12")
+        self.assertEqual(data["callsign"], "DICT01")
+        self.assertEqual(data["origin_country"], "Dictland")
+        self.assertEqual(data["longitude"], 10.0)
+        self.assertEqual(data["latitude"], 20.0)
+        self.assertEqual(data["baro_altitude"], 5000.0)
+        self.assertEqual(data["velocity"], 200.0)
+        self.assertEqual(data["true_track"], 45.0)
+        self.assertEqual(data["vertical_rate"], 2.5)
+        self.assertEqual(data["geo_altitude"], 5100.0)
+        self.assertEqual(data["on_ground"], False)
+        self.assertEqual(data["squawk"], "4321")
+        self.assertEqual(data["spi"], True)
 
         # Проверка что все поля присутствуют
         expected_keys = {
-            'icao24', 'callsign', 'origin_country', 'longitude', 'latitude',
-            'baro_altitude', 'velocity', 'true_track', 'vertical_rate',
-            'geo_altitude', 'on_ground', 'squawk', 'spi'
+            "icao24",
+            "callsign",
+            "origin_country",
+            "longitude",
+            "latitude",
+            "baro_altitude",
+            "velocity",
+            "true_track",
+            "vertical_rate",
+            "geo_altitude",
+            "on_ground",
+            "squawk",
+            "spi",
         }
         self.assertEqual(set(data.keys()), expected_keys)
 
@@ -624,7 +634,7 @@ class TestAircraftMethods(unittest.TestCase):
             true_track=0.0,
             vertical_rate=0.0,
             geo_altitude=0.0,
-            on_ground=True
+            on_ground=True,
         )
 
         ground_str = str(ground_plane)
@@ -643,7 +653,7 @@ class TestAircraftMethods(unittest.TestCase):
 
     def test_slots_attribute(self):
         """Тест что класс использует __slots__."""
-        self.assertTrue(hasattr(Aircraft, '__slots__'))
+        self.assertTrue(hasattr(Aircraft, "__slots__"))
 
         # Проверка что нельзя добавить новый атрибут
         with self.assertRaises(AttributeError):
@@ -682,7 +692,7 @@ class TestAircraftEdgeCases(unittest.TestCase):
             true_track=450.0,  # 450 - 360 = 90
             vertical_rate=0.0,
             geo_altitude=1000.0,
-            on_ground=False
+            on_ground=False,
         )
         self.assertAlmostEqual(plane1.true_track, 90.0)
 
@@ -698,7 +708,7 @@ class TestAircraftEdgeCases(unittest.TestCase):
             true_track=-90.0,  # -90 + 360 = 270
             vertical_rate=0.0,
             geo_altitude=1000.0,
-            on_ground=False
+            on_ground=False,
         )
         self.assertAlmostEqual(plane2.true_track, 270.0)
 
@@ -714,7 +724,7 @@ class TestAircraftEdgeCases(unittest.TestCase):
             true_track=360.0,
             vertical_rate=0.0,
             geo_altitude=1000.0,
-            on_ground=False
+            on_ground=False,
         )
         self.assertAlmostEqual(plane3.true_track, 0.0)
 
@@ -732,7 +742,7 @@ class TestAircraftEdgeCases(unittest.TestCase):
             vertical_rate=0.0,
             geo_altitude=1000.0,
             on_ground=False,
-            squawk="  1234  "
+            squawk="  1234  ",
         )
 
         # Пробелы должны быть удалены
@@ -754,7 +764,7 @@ class TestAircraftEdgeCases(unittest.TestCase):
             true_track=0.001,
             vertical_rate=0.001,
             geo_altitude=0.1,
-            on_ground=False
+            on_ground=False,
         )
 
         self.assertAlmostEqual(plane.longitude, 0.000001)
@@ -771,13 +781,13 @@ class TestAircraftEdgeCases(unittest.TestCase):
             callsign="MAXVAL",
             origin_country="Test",
             longitude=180.0,  # Максимальная долгота
-            latitude=90.0,    # Максимальная широта
+            latitude=90.0,  # Максимальная широта
             baro_altitude=20000.0,  # Максимальная высота
             velocity=1000.0,  # Максимальная скорость
             true_track=359.999,
             vertical_rate=100.0,  # Максимальная вертикальная скорость
             geo_altitude=20000.0,
-            on_ground=False
+            on_ground=False,
         )
 
         self.assertEqual(plane.longitude, 180.0)
@@ -790,8 +800,3 @@ class TestAircraftEdgeCases(unittest.TestCase):
         # Проверка конвертаций
         self.assertAlmostEqual(plane.velocity_kmh, 3600.0, places=1)
         self.assertAlmostEqual(plane.altitude_feet, 65616.8, places=1)
-
-
-
-
-

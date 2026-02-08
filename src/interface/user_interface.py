@@ -2,15 +2,15 @@
 Модуль для взаимодействия с пользователем через консоль.
 """
 
-import sys
 import logging
 import os
+import sys
 from typing import List, Optional
 
+from src import loggers
 from src.api.aircraft_fetcher import AircraftDataFetcher
 from src.files import JSONFileHandler
 from src.models.aeroplanes import Aircraft
-from src import loggers
 
 
 class UserInterface:
@@ -22,14 +22,12 @@ class UserInterface:
         """Инициализация пользовательского интерфейса."""
         # Автоматически определяем имя логгера на основе имени файла
         current_file = os.path.basename(__file__)  # 'user_interface.py'
-        name = os.path.splitext(current_file)[0]   # 'user_interface'
-        file_name = f"{name}.log"                  # 'user_interface.log'
+        name = os.path.splitext(current_file)[0]  # 'user_interface'
+        file_name = f"{name}.log"  # 'user_interface.log'
 
         # Создаем логгер для этого класса
         self.logger = loggers.create_logger(
-            name_logger=name,
-            name_log_file=file_name,
-            logging_level=logging.DEBUG
+            name_logger=name, name_log_file=file_name, logging_level=logging.DEBUG
         )
 
         self.logger.info("Инициализация UserInterface")
@@ -93,7 +91,9 @@ class UserInterface:
             n = int(value)
             if n < min_val or n > max_val:
                 print(f"❌ Число должно быть от {min_val} до {max_val}!")
-                self.logger.warning(f"Число вне диапазона: {n} (допустимо {min_val}-{max_val})")
+                self.logger.warning(
+                    f"Число вне диапазона: {n} (допустимо {min_val}-{max_val})"
+                )
                 return None
 
             self.logger.debug(f"Пользователь ввел число: {n}")
@@ -157,7 +157,9 @@ class UserInterface:
                     self.logger.warning(f"Ошибка при создании объекта самолета: {e}")
 
             if error_count > 0:
-                self.logger.warning(f"Не удалось создать {error_count} объектов самолетов")
+                self.logger.warning(
+                    f"Не удалось создать {error_count} объектов самолетов"
+                )
 
             if not self.current_data:
                 print("❌ Не удалось создать объекты самолетов из полученных данных")
@@ -185,7 +187,9 @@ class UserInterface:
                 success = self.file_handler.add_aircrafts(self.current_data)
                 if success:
                     print("✅ Данные успешно сохранены!")
-                    self.logger.info(f"Данные успешно сохранены: {len(self.current_data)} самолетов")
+                    self.logger.info(
+                        f"Данные успешно сохранены: {len(self.current_data)} самолетов"
+                    )
                 else:
                     print("❌ Ошибка при сохранении данных")
                     self.logger.error("Ошибка при сохранении данных")
@@ -194,7 +198,9 @@ class UserInterface:
 
         except Exception as e:
             print(f"❌ Ошибка: {e}")
-            self.logger.error(f"Ошибка при получении данных о самолетах: {e}", exc_info=True)
+            self.logger.error(
+                f"Ошибка при получении данных о самолетах: {e}", exc_info=True
+            )
 
     def handle_show_top_aircrafts(self) -> None:
         """Обработать показ топ N самолетов по высоте."""
@@ -276,7 +282,9 @@ class UserInterface:
 
         except Exception as e:
             print(f"❌ Ошибка: {e}")
-            self.logger.error(f"Ошибка при поиске самолетов по стране: {e}", exc_info=True)
+            self.logger.error(
+                f"Ошибка при поиске самолетов по стране: {e}", exc_info=True
+            )
 
     def handle_save_current_data(self) -> None:
         """Обработать сохранение текущих данных."""
@@ -322,7 +330,9 @@ class UserInterface:
                 return
 
             print(f"📊 Всего самолетов: {stats.get('total_aircrafts', 0)}")
-            self.logger.debug(f"Статистика: всего самолетов: {stats.get('total_aircrafts', 0)}")
+            self.logger.debug(
+                f"Статистика: всего самолетов: {stats.get('total_aircrafts', 0)}"
+            )
 
             # Статистика по странам
             countries = stats.get("countries", {})
@@ -423,7 +433,9 @@ class UserInterface:
 
         except Exception as e:
             print(f"❌ Ошибка: {e}")
-            self.logger.error(f"Ошибка при получении всех самолетов: {e}", exc_info=True)
+            self.logger.error(
+                f"Ошибка при получении всех самолетов: {e}", exc_info=True
+            )
 
     def handle_delete_aircraft(self) -> None:
         """Удалить конкретный самолет."""
@@ -502,6 +514,7 @@ def main() -> None:
     except Exception as e:
         print(f"\n❌ Критическая ошибка: {e}")
         import traceback
+
         traceback.print_exc()
         sys.exit(1)
 

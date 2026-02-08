@@ -4,6 +4,7 @@
 """
 
 import sys
+
 from src.interface import UserInterface
 
 
@@ -22,6 +23,7 @@ def main() -> None:
     except Exception as e:
         print(f"\n❌ Критическая ошибка: {e}")
         import traceback
+
         traceback.print_exc()
         sys.exit(1)
 

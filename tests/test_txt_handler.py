@@ -2,11 +2,11 @@
 Тесты для TXTFileHandler.
 """
 
-import unittest
 import os
-import tempfile
 import shutil
-from unittest.mock import patch, MagicMock
+import tempfile
+import unittest
+from unittest.mock import patch
 
 from src.files.txt_handler import TXTFileHandler
 
@@ -15,18 +15,18 @@ class MockAircraft:
     """Мок-объект для самолета для тестов."""
 
     def __init__(self, **kwargs):
-        self.icao24 = kwargs.get('icao24', 'default_icao')
-        self.callsign = kwargs.get('callsign', 'default_callsign')
-        self.origin_country = kwargs.get('origin_country', 'default_country')
-        self.latitude = kwargs.get('latitude', 0.0)
-        self.longitude = kwargs.get('longitude', 0.0)
-        self.baro_altitude = kwargs.get('baro_altitude', 0.0)
-        self.velocity = kwargs.get('velocity', 0.0)
-        self.true_track = kwargs.get('true_track', 0.0)
-        self.vertical_rate = kwargs.get('vertical_rate', 0.0)
-        self.geo_altitude = kwargs.get('geo_altitude', 0.0)
-        self.on_ground = kwargs.get('on_ground', False)
-        self.squawk = kwargs.get('squawk', None)
+        self.icao24 = kwargs.get("icao24", "default_icao")
+        self.callsign = kwargs.get("callsign", "default_callsign")
+        self.origin_country = kwargs.get("origin_country", "default_country")
+        self.latitude = kwargs.get("latitude", 0.0)
+        self.longitude = kwargs.get("longitude", 0.0)
+        self.baro_altitude = kwargs.get("baro_altitude", 0.0)
+        self.velocity = kwargs.get("velocity", 0.0)
+        self.true_track = kwargs.get("true_track", 0.0)
+        self.vertical_rate = kwargs.get("vertical_rate", 0.0)
+        self.geo_altitude = kwargs.get("geo_altitude", 0.0)
+        self.on_ground = kwargs.get("on_ground", False)
+        self.squawk = kwargs.get("squawk", None)
 
         # Свойства для форматирования
         self.altitude_feet = self.baro_altitude * 3.28084  # метры в футы
@@ -59,7 +59,7 @@ class TestTXTFileHandler(unittest.TestCase):
         self.assertTrue(os.path.exists(expected_file))
 
         # Проверяем содержимое файла
-        with open(expected_file, 'r', encoding='utf-8') as f:
+        with open(expected_file, "r", encoding="utf-8") as f:
             content = f.read()
             self.assertIn("=== Aviation Tracker Data ===", content)
 
@@ -90,7 +90,7 @@ class TestTXTFileHandler(unittest.TestCase):
             vertical_rate=5.0,
             geo_altitude=10000,
             on_ground=False,
-            squawk="1234"
+            squawk="1234",
         )
 
         # Добавляем самолет
@@ -99,7 +99,7 @@ class TestTXTFileHandler(unittest.TestCase):
 
         # Проверяем содержимое файла
         file_path = "test_data.txt"
-        with open(file_path, 'r', encoding='utf-8') as f:
+        with open(file_path, "r", encoding="utf-8") as f:
             content = f.read()
 
         # Проверяем что основные данные записаны
@@ -123,7 +123,7 @@ class TestTXTFileHandler(unittest.TestCase):
             icao24="abc123",
             callsign="TEST01",
             origin_country="Test Country",
-            squawk=None  # Без squawk
+            squawk=None,  # Без squawk
         )
 
         # Добавляем самолет
@@ -132,7 +132,7 @@ class TestTXTFileHandler(unittest.TestCase):
 
         # Проверяем что строка с squawk не добавлена
         file_path = "test_data.txt"
-        with open(file_path, 'r', encoding='utf-8') as f:
+        with open(file_path, "r", encoding="utf-8") as f:
             content = f.read()
 
         self.assertNotIn("Squawk:", content)
@@ -146,7 +146,7 @@ class TestTXTFileHandler(unittest.TestCase):
             icao24="abc123",
             callsign="TEST01",
             origin_country="Test Country",
-            on_ground=True
+            on_ground=True,
         )
 
         # Добавляем самолет
@@ -155,7 +155,7 @@ class TestTXTFileHandler(unittest.TestCase):
 
         # Проверяем что статус правильный
         file_path = "test_data.txt"
-        with open(file_path, 'r', encoding='utf-8') as f:
+        with open(file_path, "r", encoding="utf-8") as f:
             content = f.read()
 
         self.assertIn("На земле: Да", content)
@@ -180,7 +180,7 @@ class TestTXTFileHandler(unittest.TestCase):
 
         # Проверяем содержимое файла
         file_path = "test_data.txt"
-        with open(file_path, 'r', encoding='utf-8') as f:
+        with open(file_path, "r", encoding="utf-8") as f:
             content = f.read()
 
         # Проверяем что все самолеты записаны
@@ -200,13 +200,18 @@ class TestTXTFileHandler(unittest.TestCase):
         # Подсчитаем сколько раз встречается фраза "Самолет:" (должно быть 3 раза)
         aircraft_count = content.count("Самолет:")
         self.assertEqual(aircraft_count, 3)
-    def test_add_aircrafts_partial_failure(self):
+
+    def test_add_aircraft_partial_failure(self):
         """Тест добавления списка с частичным сбоем."""
         handler = TXTFileHandler("test_data")
 
         # Мокаем метод add_aircraft чтобы имитировать частичный сбой
-        with patch.object(handler, 'add_aircraft') as mock_add:
-            mock_add.side_effect = [True, False, True]  # Первый и третий успешны, второй нет
+        with patch.object(handler, "add_aircraft") as mock_add:
+            mock_add.side_effect = [
+                True,
+                False,
+                True,
+            ]  # Первый и третий успешны, второй нет
 
             # Создаем список самолетов
             aircrafts = [
@@ -232,7 +237,7 @@ class TestTXTFileHandler(unittest.TestCase):
 
         # Проверяем что данные есть
         file_path = "test_data.txt"
-        with open(file_path, 'r', encoding='utf-8') as f:
+        with open(file_path, "r", encoding="utf-8") as f:
             content_before = f.read()
 
         self.assertIn("TST001 (001)", content_before)
@@ -242,7 +247,7 @@ class TestTXTFileHandler(unittest.TestCase):
         self.assertTrue(result)
 
         # Проверяем что файл очищен
-        with open(file_path, 'r', encoding='utf-8') as f:
+        with open(file_path, "r", encoding="utf-8") as f:
             content_after = f.read()
 
         self.assertNotIn("TST001 (001)", content_after)
@@ -253,14 +258,13 @@ class TestTXTFileHandler(unittest.TestCase):
         handler = TXTFileHandler("test_data")
 
         # Метод должен вернуть пустой список и напечатать предупреждение
-        with patch('builtins.print') as mock_print:
+        with patch("builtins.print") as mock_print:
             result = handler.get_all_aircrafts()
 
             self.assertEqual(result, [])
             mock_print.assert_called_with(
                 "Внимание: TXT формат не поддерживает полноценное чтение структурированных данных"
             )
-
 
     def test_file_creation_on_init(self):
         """Тест создания файла при инициализации."""
@@ -270,13 +274,13 @@ class TestTXTFileHandler(unittest.TestCase):
             os.remove(test_file)
 
         # Инициализируем обработчик
-        handler = TXTFileHandler("test_creation")
+        TXTFileHandler("test_creation")
 
         # Проверяем что файл создан
         self.assertTrue(os.path.exists("test_creation.txt"))
 
         # Проверяем начальное содержимое
-        with open("test_creation.txt", 'r', encoding='utf-8') as f:
+        with open("test_creation.txt", "r", encoding="utf-8") as f:
             content = f.read()
 
         expected_start = "=== Aviation Tracker Data ===\n\n"
