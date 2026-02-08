@@ -1,9 +1,5 @@
-"""
-Абстрактный базовый класс для работы с файлами.
-"""
-
 from abc import ABC, abstractmethod
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 from src.models.aeroplanes import Aircraft
 
