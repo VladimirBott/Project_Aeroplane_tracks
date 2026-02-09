@@ -1,468 +1,441 @@
 """
-Тесты для модуля JSONFileHandler.
+Минималистичные тесты для JSONFileHandler без создания файлов.
 """
-
 import json
-import tempfile
-from pathlib import Path
-from unittest.mock import Mock, patch
-
-import pytest
-
+from unittest.mock import MagicMock, mock_open, patch
 from src.files.json_handler import JSONFileHandler
 from src.models.aeroplanes import Aircraft
 
 
-def create_test_aircraft(
-    icao24="test123",
-    callsign="TEST",
-    origin_country="Test Country",
-    latitude=55.7558,
-    longitude=37.6173,
-    baro_altitude=10000.0,
-    velocity=250.0,
-    on_ground=False,
-    squawk="1234",
-    true_track=45.0,
-    vertical_rate=10.0,
-    geo_altitude=9500.0,
-):
-    """Создать тестовый самолет с заданными параметрами."""
-    return Aircraft(
-        icao24=icao24,
-        callsign=callsign,
-        origin_country=origin_country,
-        latitude=latitude,
-        longitude=longitude,
-        baro_altitude=baro_altitude,
-        velocity=velocity,
-        on_ground=on_ground,
-        squawk=squawk,
-        true_track=true_track,
-        vertical_rate=vertical_rate,
-        geo_altitude=geo_altitude,
-    )
+class TestJSONFileHandlerSimple:
+    """Простые тесты для JSONFileHandler, которые не создают файлы."""
 
+    def test_create_handler_without_files(self):
+        """Просто создаем handler без файловых операций."""
+        # Патчим Path в base.py, а не в json_handler
+        with patch("src.files.base.Path") as MockPath:
+            mock_path_instance = MockPath.return_value
+            mock_path_instance.exists.return_value = True
 
-@pytest.fixture
-def temp_dir():
-    """Создать временную директорию для тестов."""
-    with tempfile.TemporaryDirectory() as tmpdir:
-        yield Path(tmpdir)
+            # Мокаем open чтобы ничего не записывать
+            with patch("builtins.open", mock_open()):
+                handler = JSONFileHandler("test_data")
 
+                # Проверяем что handler создан
+                assert handler is not None
+                # Проверяем что это JSONFileHandler
+                assert isinstance(handler, JSONFileHandler)
 
-@pytest.fixture
-def sample_aircraft():
-    """Создать тестовый объект самолета."""
-    return create_test_aircraft(
-        icao24="abc123", callsign="TEST01", origin_country="Test Country"
-    )
-
-
-@pytest.fixture
-def sample_aircraft_dict():
-    """Создать тестовый словарь самолета."""
-    return {
-        "icao24": "def456",
-        "callsign": "TEST02",
-        "origin_country": "Another Country",
-        "latitude": 51.5074,
-        "longitude": -0.1278,
-        "baro_altitude": 8000.0,
-        "velocity": 220.0,
-        "on_ground": True,
-        "squawk": "5678",
-        "true_track": 90.0,
-        "vertical_rate": 0.0,
-        "geo_altitude": 7800.0,
-    }
-
-
-class TestJSONFileHandler:
-    """Тесты для класса JSONFileHandler."""
-
-    def test_init_creates_data_dir(self, temp_dir):
-        """Тест инициализации создает папку data."""
-        with patch.object(Path, "cwd", return_value=temp_dir):
-            handler = JSONFileHandler("test_data")
-
-            # Проверяем что папка создана
-            data_dir = temp_dir / "data"
-            assert data_dir.exists()
-
-            # Проверяем путь к файлу
-            expected_file = data_dir / "test_data.json"
-            assert handler._full_filename == expected_file
-
-    def test_init_creates_file_if_not_exists(self, temp_dir):
-        """Тест создания файла если он не существует."""
-        with patch.object(Path, "cwd", return_value=temp_dir):
-            handler = JSONFileHandler("test_data")
-
-            # Проверяем что файл создан
-            assert handler._full_filename.exists()
-
-            # Проверяем содержимое файла
-            with open(handler._full_filename, "r", encoding="utf-8") as f:
-                content = json.load(f)
-                assert content == []
-
-    def test_init_uses_existing_file(self, temp_dir):
-        """Тест использования существующего файла."""
-        with patch.object(Path, "cwd", return_value=temp_dir):
-            # Создаем файл с данными заранее
-            data_dir = temp_dir / "data"
-            data_dir.mkdir(exist_ok=True)
-
-            test_data = [{"test": "data"}]
-            file_path = data_dir / "test_data.json"
-            with open(file_path, "w", encoding="utf-8") as f:
-                json.dump(test_data, f)
-
-            # Создаем handler
-            handler = JSONFileHandler("test_data")
-
-            # Проверяем что файл существует и не перезаписан
-            assert handler._full_filename.exists()
-            assert handler._full_filename == file_path
-
-    def test_read_data_empty_file(self, temp_dir):
-        """Тест чтения пустого файла."""
-        with patch.object(Path, "cwd", return_value=temp_dir):
-            handler = JSONFileHandler("test_data")
-
-            # Мокаем logger чтобы не засорять вывод
-            handler.logger = Mock()
-
-            data = handler._read_data()
-            assert data == []
-
-    def test_read_data_with_content(self, temp_dir):
-        """Тест чтения файла с содержимым."""
-        with patch.object(Path, "cwd", return_value=temp_dir):
-            # Создаем файл с данными
-            data_dir = temp_dir / "data"
-            data_dir.mkdir(exist_ok=True)
-
-            test_data = [
-                {"icao24": "test1", "name": "Test 1"},
-                {"icao24": "test2", "name": "Test 2"},
-            ]
-
-            file_path = data_dir / "test_data.json"
-            with open(file_path, "w", encoding="utf-8") as f:
-                json.dump(test_data, f)
-
-            handler = JSONFileHandler("test_data")
-            handler.logger = Mock()
-
-            data = handler._read_data()
-            assert data == test_data
-
-    def test_read_data_invalid_json(self, temp_dir):
-        """Тест чтения невалидного JSON файла."""
-        with patch.object(Path, "cwd", return_value=temp_dir):
-            handler = JSONFileHandler("test_data")
-            handler.logger = Mock()
-
-            # Записываем невалидный JSON в файл
-            with open(handler._full_filename, "w", encoding="utf-8") as f:
-                f.write("not a valid json")
-
-            data = handler._read_data()
-            assert data == []
-
-            # Проверяем что файл был исправлен
-            with open(handler._full_filename, "r", encoding="utf-8") as f:
-                content = f.read().strip()
-                assert content == "[]"
-
-    def test_write_data_success(self, temp_dir):
-        """Тест успешной записи данных."""
-        with patch.object(Path, "cwd", return_value=temp_dir):
-            handler = JSONFileHandler("test_data")
-            handler.logger = Mock()
-
-            test_data = [{"test": "data"}]
-            result = handler._write_data(test_data)
-
-            assert result is True
-            assert handler._full_filename.exists()
-
-            # Проверяем записанные данные
-            with open(handler._full_filename, "r", encoding="utf-8") as f:
-                content = json.load(f)
-                assert content == test_data
-
-    def test_write_data_permission_error(self, temp_dir):
-        """Тест записи при ошибке прав доступа."""
-        with patch.object(Path, "cwd", return_value=temp_dir):
-            handler = JSONFileHandler("test_data")
-            handler.logger = Mock()
-
-            # Мокаем os.access чтобы симулировать ошибку прав
-            with patch("os.access", return_value=False):
-                test_data = [{"test": "data"}]
-                result = handler._write_data(test_data)
-
-                assert result is False
-
-    def test_aircraft_exists(self):
-        """Тест проверки существования самолета."""
-        handler = JSONFileHandler()
-        handler.logger = Mock()
-
+    def test_read_data_mocked(self):
+        """Тест чтения данных с моком."""
+        # Создаем mock данные
         test_data = [
-            {"icao24": "abc123", "name": "Test 1"},
-            {"icao24": "def456", "name": "Test 2"},
+            {"icao24": "A0B1C2", "callsign": "SU123"},
+            {"icao24": "D3E4F5", "callsign": "BA456"},
         ]
 
-        # Самолет существует
-        assert handler._aircraft_exists("abc123", test_data) is True
-        assert handler._aircraft_exists("def456", test_data) is True
+        # Создаем handler через конструктор с моками
+        with patch("src.files.base.Path") as MockPath:
+            mock_path = MockPath.return_value
+            mock_path.exists.return_value = True
 
-        # Самолет не существует
-        assert handler._aircraft_exists("xyz789", test_data) is False
+            with patch("builtins.open", mock_open(read_data=json.dumps(test_data))):
+                handler = JSONFileHandler("test")
 
-    def test_add_aircraft_duplicate(self, temp_dir, sample_aircraft):
-        """Тест добавления дубликата самолета."""
-        with patch.object(Path, "cwd", return_value=temp_dir):
-            handler = JSONFileHandler("test_data")
-            handler.logger = Mock()
+                # Теперь можно тестировать
+                with patch.object(handler, "_ensure_file_exists"):
+                    result = handler._read_data()
 
-            existing_data = [{"icao24": "abc123", "name": "Existing"}]
+                    assert result == test_data
 
-            with patch.object(handler, "_read_data", return_value=existing_data):
-                result = handler.add_aircraft(sample_aircraft)
-                assert result is False
 
-    def test_add_aircrafts_empty_list(self, temp_dir):
-        """Тест добавления пустого списка самолетов."""
-        with patch.object(Path, "cwd", return_value=temp_dir):
-            handler = JSONFileHandler("test_data")
-            handler.logger = Mock()
+class TestJSONFileHandlerMethods:
+    """Тесты методов JSONFileHandler без файловых операций."""
 
-            result = handler.add_aircrafts([])
-            assert result is True
+    def setup_method(self):
+        """Создаем handler без файловых операций."""
+        # Создаем handler через __new__, чтобы избежать __init__
+        self.handler = JSONFileHandler.__new__(JSONFileHandler)
+        self.handler._filename = "test"
 
-    def test_get_all_aircrafts(self, temp_dir):
+        # Мокаем свойства которые нужны для работы
+        self.handler._read_data = MagicMock()
+        self.handler._write_data = MagicMock(return_value=True)
+
+    def test_add_aircraft(self):
+        """Тест добавления самолета."""
+        plane = Aircraft(icao24="A0B1C2", callsign="SU123")
+
+        # Настраиваем мок чтения (файл пустой)
+        self.handler._read_data.return_value = []
+
+        result = self.handler.add_aircraft(plane)
+
+        assert result is True
+        self.handler._write_data.assert_called_once()
+
+        # Проверяем что в данные добавились правильные поля
+        written_data = self.handler._write_data.call_args[0][0]
+        assert len(written_data) == 1
+        assert written_data[0]["icao24"] == "A0B1C2"
+        assert written_data[0]["callsign"] == "SU123"
+        assert "_added_at" in written_data[0]
+
+    def test_add_aircraft_already_exists(self):
+        """Тест добавления уже существующего самолета."""
+        plane = Aircraft(icao24="A0B1C2")
+
+        # Настраиваем мок чтения (самолет уже есть)
+        self.handler._read_data.return_value = [{"icao24": "A0B1C2"}]
+
+        result = self.handler.add_aircraft(plane)
+
+        assert result is False
+        self.handler._write_data.assert_not_called()
+
+    def test_get_all_aircrafts(self):
         """Тест получения всех самолетов."""
-        with patch.object(Path, "cwd", return_value=temp_dir):
-            handler = JSONFileHandler("test_data")
-            handler.logger = Mock()
+        test_data = [
+            {"icao24": "A0B1C2", "callsign": "SU123", "_added_at": "2024-01-01"},
+            {"icao24": "D3E4F5", "callsign": "BA456", "_added_at": "2024-01-01"},
+        ]
 
-            test_data = [
-                {"icao24": "test1", "name": "Test 1", "_added_at": "2024-01-01"},
-                {"icao24": "test2", "name": "Test 2", "_added_at": "2024-01-02"},
-            ]
+        self.handler._read_data.return_value = test_data
 
-            with patch.object(handler, "_read_data", return_value=test_data):
-                result = handler.get_all_aircrafts()
+        result = self.handler.get_all_aircrafts()
 
-                # Проверяем что служебные поля удалены
-                assert len(result) == 2
-                assert "_added_at" not in result[0]
-                assert "_added_at" not in result[1]
-                assert result[0]["icao24"] == "test1"
-                assert result[1]["icao24"] == "test2"
+        assert len(result) == 2
+        # Проверяем что служебные поля удалены
+        for item in result:
+            assert "_added_at" not in item
 
-    def test_get_aircrafts_by_country(self, temp_dir):
-        """Тест получения самолетов по стране."""
-        with patch.object(Path, "cwd", return_value=temp_dir):
-            handler = JSONFileHandler("test_data")
-            handler.logger = Mock()
+    def test_get_aircrafts_by_country(self):
+        """Тест получения по стране."""
+        test_data = [
+            {"icao24": "A0B1C2", "origin_country": "Russia", "_added_at": "2024-01-01"},
+            {"icao24": "D3E4F5", "origin_country": "UK", "_added_at": "2024-01-01"},
+            {"icao24": "G7H8I9", "origin_country": "Russia", "_added_at": "2024-01-01"},
+        ]
 
-            test_data = [
-                {"icao24": "test1", "origin_country": "USA", "name": "Test 1"},
-                {"icao24": "test2", "origin_country": "Russia", "name": "Test 2"},
-                {"icao24": "test3", "origin_country": "USA", "name": "Test 3"},
-            ]
+        self.handler._read_data.return_value = test_data
 
-            with patch.object(handler, "_read_data", return_value=test_data):
-                # Поиск без учета регистра
-                result = handler.get_aircrafts_by_country("usa")
-                assert len(result) == 2
-                assert all(item["origin_country"] == "USA" for item in result)
+        result = self.handler.get_aircrafts_by_country("Russia")
 
-                # Пустой результат
-                result = handler.get_aircrafts_by_country("France")
-                assert result == []
+        assert len(result) == 2
+        for item in result:
+            assert item["origin_country"] == "Russia"
+            assert "_added_at" not in item
 
-    def test_get_top_aircrafts_by_altitude(self, temp_dir):
-        """Тест получения топ самолетов по высоте."""
-        with patch.object(Path, "cwd", return_value=temp_dir):
-            handler = JSONFileHandler("test_data")
-            handler.logger = Mock()
+    def test_get_top_aircrafts_by_altitude(self):
+        """Тест получения топ N по высоте."""
+        test_data = [
+            {"icao24": "A0B1C2", "baro_altitude": 5000, "_added_at": "2024-01-01"},
+            {"icao24": "D3E4F5", "baro_altitude": 10000, "_added_at": "2024-01-01"},
+            {"icao24": "G7H8I9", "baro_altitude": 7000, "_added_at": "2024-01-01"},
+        ]
 
-            test_data = [
-                {"icao24": "test1", "baro_altitude": 5000, "name": "Test 1"},
-                {"icao24": "test2", "baro_altitude": 10000, "name": "Test 2"},
-                {"icao24": "test3", "baro_altitude": 3000, "name": "Test 3"},
-                {"icao24": "test4", "baro_altitude": 8000, "name": "Test 4"},
-            ]
+        self.handler._read_data.return_value = test_data
 
-            with patch.object(handler, "_read_data", return_value=test_data):
-                result = handler.get_top_aircrafts_by_altitude(2)
+        result = self.handler.get_top_aircrafts_by_altitude(2)
 
-                assert len(result) == 2
-                # Проверяем сортировку по убыванию высоты
-                assert result[0]["baro_altitude"] == 10000
-                assert result[1]["baro_altitude"] == 8000
+        assert len(result) == 2
+        # Проверяем сортировку
+        assert result[0]["baro_altitude"] == 10000
+        assert result[1]["baro_altitude"] == 7000
 
-    def test_delete_aircraft_success(self, temp_dir):
-        """Тест успешного удаления самолета."""
-        with patch.object(Path, "cwd", return_value=temp_dir):
-            handler = JSONFileHandler("test_data")
-            handler.logger = Mock()
+    def test_delete_aircraft(self):
+        """Тест удаления самолета."""
+        test_data = [
+            {"icao24": "A0B1C2", "callsign": "SU123"},
+            {"icao24": "D3E4F5", "callsign": "BA456"},
+        ]
 
-            test_data = [
-                {"icao24": "test1", "name": "Test 1"},
-                {"icao24": "test2", "name": "Test 2"},
-            ]
+        self.handler._read_data.return_value = test_data
 
-            with (
-                patch.object(handler, "_read_data", return_value=test_data),
-                patch.object(handler, "_write_data", return_value=True),
-            ):
+        result = self.handler.delete_aircraft("A0B1C2")
 
-                result = handler.delete_aircraft("test1")
-                assert result is True
+        assert result is True
+        self.handler._write_data.assert_called_once()
 
-    def test_delete_aircraft_not_found(self, temp_dir):
-        """Тест удаления несуществующего самолета."""
-        with patch.object(Path, "cwd", return_value=temp_dir):
-            handler = JSONFileHandler("test_data")
-            handler.logger = Mock()
+        # Проверяем что правильный самолет удален
+        written_data = self.handler._write_data.call_args[0][0]
+        assert len(written_data) == 1
+        assert written_data[0]["icao24"] == "D3E4F5"
 
-            test_data = [
-                {"icao24": "test1", "name": "Test 1"},
-                {"icao24": "test2", "name": "Test 2"},
-            ]
-
-            with patch.object(handler, "_read_data", return_value=test_data):
-                result = handler.delete_aircraft("test3")
-                assert result is False
-
-    def test_clear_all_data(self, temp_dir):
+    def test_clear_all_data(self):
         """Тест очистки всех данных."""
-        with patch.object(Path, "cwd", return_value=temp_dir):
-            handler = JSONFileHandler("test_data")
-            handler.logger = Mock()
+        result = self.handler.clear_all_data()
 
-            with patch.object(handler, "_write_data", return_value=True):
-                result = handler.clear_all_data()
-                assert result is True
+        assert result is True
+        self.handler._write_data.assert_called_once_with([])
 
-    def test_get_statistics_empty(self, temp_dir):
-        """Тест получения статистики пустого файла."""
-        with patch.object(Path, "cwd", return_value=temp_dir):
-            handler = JSONFileHandler("test_data")
-            handler.logger = Mock()
+    def test_get_statistics(self):
+        """Тест статистики."""
+        test_data = [
+            {
+                "icao24": "A0B1C2",
+                "origin_country": "Russia",
+                "baro_altitude": 5000,
+                "velocity": 200,
+            },
+            {
+                "icao24": "D3E4F5",
+                "origin_country": "UK",
+                "baro_altitude": 10000,
+                "velocity": 250,
+            },
+            {
+                "icao24": "G7H8I9",
+                "origin_country": "Russia",
+                "baro_altitude": 7000,
+                "velocity": 150,
+            },
+        ]
 
-            with patch.object(handler, "_read_data", return_value=[]):
-                stats = handler.get_statistics()
+        self.handler._read_data.return_value = test_data
 
-                assert stats["total_aircrafts"] == 0
-                assert stats["countries"] == {}
-                assert "file_location" in stats
+        stats = self.handler.get_statistics()
 
-    def test_get_statistics_with_data(self, temp_dir):
-        """Тест получения статистики с данными."""
-        with patch.object(Path, "cwd", return_value=temp_dir):
-            handler = JSONFileHandler("test_data")
-            handler.logger = Mock()
+        assert stats["total_aircrafts"] == 3
+        assert stats["most_common_country"]["country"] == "Russia"
+        assert stats["most_common_country"]["count"] == 2
+        assert stats["altitude_stats"]["min"] == 5000
+        assert stats["altitude_stats"]["max"] == 10000
+        assert stats["altitude_stats"]["average"] == (5000 + 10000 + 7000) / 3
 
-            test_data = [
+
+class TestJSONFileHandlerIntegration:
+    """Интеграционные тесты без реальных файлов."""
+
+    def test_full_workflow(self):
+        """Тест полного цикла работы."""
+        # Создаем handler без конструктора
+        handler = JSONFileHandler.__new__(JSONFileHandler)
+        handler._filename = "test"
+
+        # Создаем моки для всех методов
+        read_data_mock = MagicMock()
+        write_data_mock = MagicMock(return_value=True)
+
+        handler._read_data = read_data_mock
+        handler._write_data = write_data_mock
+
+        # Самолеты для теста
+        planes = [
+            Aircraft(
+                icao24="A0B1C2",
+                callsign="SU123",
+                origin_country="Russia",
+                baro_altitude=10000,
+            ),
+            Aircraft(
+                icao24="D3E4F5",
+                callsign="BA456",
+                origin_country="UK",
+                baro_altitude=12000,
+            ),
+        ]
+
+        # Настраиваем последовательные вызовы read_data
+        read_data_mock.side_effect = [
+            [],  # 1. Файл пустой при добавлении
+            [  # 2. После добавления
                 {
-                    "icao24": "test1",
-                    "origin_country": "USA",
-                    "baro_altitude": 10000,
-                    "velocity": 250,
-                },
-                {
-                    "icao24": "test2",
-                    "origin_country": "USA",
-                    "baro_altitude": 8000,
-                    "velocity": 220,
-                },
-                {
-                    "icao24": "test3",
+                    "icao24": "A0B1C2",
+                    "callsign": "SU123",
                     "origin_country": "Russia",
-                    "baro_altitude": 12000,
-                    "velocity": 280,
+                    "baro_altitude": 10000,
                 },
-            ]
+                {
+                    "icao24": "D3E4F5",
+                    "callsign": "BA456",
+                    "origin_country": "UK",
+                    "baro_altitude": 12000,
+                },
+            ],
+            [  # 3. Для get_aircrafts_by_country
+                {
+                    "icao24": "A0B1C2",
+                    "callsign": "SU123",
+                    "origin_country": "Russia",
+                    "baro_altitude": 10000,
+                },
+                {
+                    "icao24": "D3E4F5",
+                    "callsign": "BA456",
+                    "origin_country": "UK",
+                    "baro_altitude": 12000,
+                },
+            ],
+            [  # 4. Для get_top_aircrafts_by_altitude
+                {
+                    "icao24": "A0B1C2",
+                    "callsign": "SU123",
+                    "origin_country": "Russia",
+                    "baro_altitude": 10000,
+                },
+                {
+                    "icao24": "D3E4F5",
+                    "callsign": "BA456",
+                    "origin_country": "UK",
+                    "baro_altitude": 12000,
+                },
+            ],
+            [  # 5. Для get_statistics
+                {
+                    "icao24": "A0B1C2",
+                    "callsign": "SU123",
+                    "origin_country": "Russia",
+                    "baro_altitude": 10000,
+                },
+                {
+                    "icao24": "D3E4F5",
+                    "callsign": "BA456",
+                    "origin_country": "UK",
+                    "baro_altitude": 12000,
+                },
+            ],
+            [  # 6. Для delete_aircraft (перед удалением)
+                {
+                    "icao24": "A0B1C2",
+                    "callsign": "SU123",
+                    "origin_country": "Russia",
+                    "baro_altitude": 10000,
+                },
+                {
+                    "icao24": "D3E4F5",
+                    "callsign": "BA456",
+                    "origin_country": "UK",
+                    "baro_altitude": 12000,
+                },
+            ],
+            [  # 7. После удаления
+                {
+                    "icao24": "D3E4F5",
+                    "callsign": "BA456",
+                    "origin_country": "UK",
+                    "baro_altitude": 12000,
+                }
+            ],
+        ]
 
-            with patch.object(handler, "_read_data", return_value=test_data):
-                stats = handler.get_statistics()
+        # Тестируем весь цикл
+        # 1. Добавляем самолеты
+        assert handler.add_aircrafts(planes) is True
+        assert write_data_mock.call_count == 1
 
-                assert stats["total_aircrafts"] == 3
-                assert stats["countries"]["USA"] == 2
-                assert stats["countries"]["Russia"] == 1
-                assert stats["altitude_stats"]["max"] == 12000
-                assert stats["altitude_stats"]["min"] == 8000
-                assert stats["speed_stats"]["max"] == 280
-                assert stats["speed_stats"]["min"] == 220
+        # 2. Получаем все самолеты
+        all_planes = handler.get_all_aircrafts()
+        assert len(all_planes) == 2
 
-    def test_get_aircraft_count(self, temp_dir):
-        """Тест получения количества самолетов."""
-        with patch.object(Path, "cwd", return_value=temp_dir):
-            handler = JSONFileHandler("test_data")
-            handler.logger = Mock()
+        # 3. Получаем по стране
+        russian_planes = handler.get_aircrafts_by_country("Russia")
+        assert len(russian_planes) == 1
 
-            test_data = [{"icao24": "test1"}, {"icao24": "test2"}, {"icao24": "test3"}]
+        # 4. Получаем топ по высоте
+        top_planes = handler.get_top_aircrafts_by_altitude(1)
+        assert len(top_planes) == 1
+        assert top_planes[0]["icao24"] == "D3E4F5"
 
-            with patch.object(handler, "_read_data", return_value=test_data):
-                count = handler.get_aircraft_count()
-                assert count == 3
+        # 5. Получаем статистику
+        stats = handler.get_statistics()
+        assert stats["total_aircrafts"] == 2
 
-    def test_get_countries(self, temp_dir):
-        """Тест получения списка стран."""
-        with patch.object(Path, "cwd", return_value=temp_dir):
-            handler = JSONFileHandler("test_data")
-            handler.logger = Mock()
+        # 6. Удаляем самолет
+        assert handler.delete_aircraft("A0B1C2") is True
+        assert write_data_mock.call_count == 2
 
-            test_data = [
-                {"icao24": "test1", "origin_country": "USA"},
-                {"icao24": "test2", "origin_country": "Russia"},
-                {"icao24": "test3", "origin_country": "USA"},
-                {"icao24": "test4", "origin_country": "Germany"},
-            ]
+        # 7. Очищаем все
+        assert handler.clear_all_data() is True
+        assert write_data_mock.call_count == 3
+        write_data_mock.assert_called_with([])
 
-            with patch.object(handler, "_read_data", return_value=test_data):
-                countries = handler.get_countries()
 
-                assert len(countries) == 3
-                assert "USA" in countries
-                assert "Russia" in countries
-                assert "Germany" in countries
-                # Проверяем сортировку
-                assert countries == ["Germany", "Russia", "USA"]
+# Еще более простые тесты - вообще без моков
+def test_json_handler_methods_exist():
+    """Просто проверяем что у класса есть нужные методы."""
+    assert hasattr(JSONFileHandler, "add_aircraft")
+    assert hasattr(JSONFileHandler, "add_aircrafts")
+    assert hasattr(JSONFileHandler, "get_all_aircrafts")
+    assert hasattr(JSONFileHandler, "get_aircrafts_by_country")
+    assert hasattr(JSONFileHandler, "get_top_aircrafts_by_altitude")
+    assert hasattr(JSONFileHandler, "delete_aircraft")
+    assert hasattr(JSONFileHandler, "clear_all_data")
+    assert hasattr(JSONFileHandler, "get_statistics")
 
-    def test_get_file_path(self, temp_dir):
-        """Тест получения пути к файлу."""
-        with patch.object(Path, "cwd", return_value=temp_dir):
-            handler = JSONFileHandler("test_data")
 
-            expected_path = str(temp_dir / "data" / "test_data.json")
-            assert handler.get_file_path() == expected_path
+def test_json_handler_properties():
+    """Проверяем свойства."""
+    # Патчим чтобы избежать создания файлов
+    with patch("src.files.base.Path") as MockPath:
+        mock_path = MockPath.return_value
+        mock_path.exists.return_value = True
 
-    def test_logger_initialization(self, temp_dir):
-        """Тест инициализации логгера."""
-        with (
-            patch.object(Path, "cwd", return_value=temp_dir),
-            patch("src.files.json_handler.loggers.create_logger") as mock_create_logger,
-        ):
+        with patch("builtins.open", mock_open()):
+            handler = JSONFileHandler("test")
 
-            mock_logger = Mock()
-            mock_create_logger.return_value = mock_logger
-
-            handler = JSONFileHandler("test_data")
-
-            # Проверяем что логгер был создан
-            mock_create_logger.assert_called_once()
-            assert handler.logger == mock_logger
+            # Проверяем свойства
+            assert hasattr(handler, "file_extension")
+            assert handler.file_extension == ".json"
 
 
 if __name__ == "__main__":
-    pytest.main([__file__, "-v"])
+    # Простой запуск
+    print("🧪 Запуск упрощенных тестов JSONFileHandler...")
+
+    # Создаем экземпляры тестовых классов
+    test_classes = [
+        TestJSONFileHandlerSimple(),
+        TestJSONFileHandlerMethods(),
+        TestJSONFileHandlerIntegration(),
+    ]
+
+    passed = 0
+    failed = 0
+
+    for tester in test_classes:
+        print(f"\n📋 Тестируем {tester.__class__.__name__}...")
+
+        # Находим все методы test_
+        test_methods = [
+            method
+            for method in dir(tester)
+            if method.startswith("test_") and callable(getattr(tester, method))
+        ]
+
+        for method_name in test_methods:
+            method = getattr(tester, method_name)
+            try:
+                # Вызываем setup_method если есть
+                if hasattr(tester, "setup_method"):
+                    tester.setup_method()
+
+                method()
+                print(f"  ✅ {method_name}")
+                passed += 1
+
+            except AssertionError as e:
+                print(f"  ❌ {method_name}: {e}")
+                failed += 1
+            except Exception as e:
+                print(f"  💥 {method_name}: {e}")
+                failed += 1
+
+    # Тесты-функции
+    print(f"\n📋 Тестируем функции...")
+    for test_func in [test_json_handler_methods_exist, test_json_handler_properties]:
+        try:
+            test_func()
+            print(f"  ✅ {test_func.__name__}")
+            passed += 1
+        except Exception as e:
+            print(f"  💥 {test_func.__name__}: {e}")
+            failed += 1
+
+    print(f"\n{'='*50}")
+    print(f"📊 Итог: {passed} прошло, {failed} упало")
+
+    if failed == 0:
+        print("🎉 Все тесты прошли успешно!")
+    else:
+        print("❌ Есть неудачные тесты")

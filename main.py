@@ -1,31 +1,22 @@
 """
-Основной модуль приложения Aviation Tracker.
-Точка входа в программу.
+Основной модуль приложения.
 """
 
-import sys
-
-from src.interface import UserInterface
+from src.interface.user_interface import UserInterface
 
 
-def main() -> None:
-    """
-    Основная функция - точка входа в программу.
-    """
+def main():
+    """Основная функция приложения."""
+    print("✈️  Aeroplane Tracker")
+    print("=" * 40)
+
     try:
-        # Создаем и запускаем пользовательский интерфейс
         ui = UserInterface()
         ui.run()
-
     except KeyboardInterrupt:
-        print("\n\n👋 Программа прервана пользователем")
-        sys.exit(0)
+        print("\n\n👋 Выход из программы")
     except Exception as e:
-        print(f"\n❌ Критическая ошибка: {e}")
-        import traceback
-
-        traceback.print_exc()
-        sys.exit(1)
+        print(f"\n❌ Ошибка: {e}")
 
 
 if __name__ == "__main__":
