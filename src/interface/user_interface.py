@@ -9,7 +9,7 @@ from typing import List, Optional
 
 from src import loggers
 from src.api.aircraft_fetcher import AircraftDataFetcher
-from src.files import JSONFileHandler
+from src.files.json_handler import JSONFileHandler
 from src.models.aeroplanes import Aircraft
 
 
@@ -362,15 +362,6 @@ class UserInterface:
                 print(f"   Минимальная: {speed_stats.get('min', 0) * 3.6:.0f} км/ч")
                 print(f"   Максимальная: {speed_stats.get('max', 0) * 3.6:.0f} км/ч")
                 print(f"   Средняя: {speed_stats.get('average', 0) * 3.6:.0f} км/ч")
-
-            # Самая распространенная страна
-            most_common = stats.get("most_common_country", {})
-            if most_common:
-                print("\n🏆 Самая распространенная страна:")
-                print(
-                    f"   {most_common.get('country', 'N/A')}: "
-                    f"{most_common.get('count', 0)} самолетов"
-                )
 
         except Exception as e:
             print(f"❌ Ошибка: {e}")

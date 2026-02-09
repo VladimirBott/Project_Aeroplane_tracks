@@ -1,408 +1,507 @@
 """
-Тесты для пользовательского интерфейса.
+Тесты для UserInterface без создания файлов и использования реальных API.
 """
 
-import io
-import unittest
+from io import StringIO
 from unittest.mock import MagicMock, patch
-
 from src.interface.user_interface import UserInterface
+from src.models.aeroplanes import Aircraft
 
 
-class MockAircraft:
-    """Мок-объект для самолета."""
-
-    def __init__(self, **kwargs):
-        self.icao24 = kwargs.get("icao24", "test123")
-        self.callsign = kwargs.get("callsign", "TEST01")
-        self.origin_country = kwargs.get("origin_country", "Testland")
-        self.latitude = kwargs.get("latitude", 50.0)
-        self.longitude = kwargs.get("longitude", 30.0)
-        self.baro_altitude = kwargs.get("baro_altitude", 10000.0)
-        self.velocity = kwargs.get("velocity", 250.0)
-        self.true_track = kwargs.get("true_track", 180.0)
-        self.vertical_rate = kwargs.get("vertical_rate", 5.0)
-        self.geo_altitude = kwargs.get("geo_altitude", 10000.0)
-        self.on_ground = kwargs.get("on_ground", False)
-        self.squawk = kwargs.get("squawk", "1234")
-
-        # Вычисляемые свойства
-        self.altitude_feet = self.baro_altitude * 3.28084
-        self.velocity_kmh = self.velocity * 3.6
-
-    @staticmethod
-    def from_opensky_data(data):
-        """Статический метод для создания из данных OpenSky."""
-        return MockAircraft(
-            icao24=data.get(0, "test123"),
-            callsign=data.get(1, "TEST01"),
-            origin_country=data.get(2, "Testland"),
-            longitude=data.get(5, 30.0),
-            latitude=data.get(6, 50.0),
-            baro_altitude=data.get(7, 10000.0),
-            velocity=data.get(9, 250.0),
-            true_track=data.get(10, 180.0),
-            vertical_rate=data.get(11, 5.0),
-            geo_altitude=data.get(13, 10000.0),
-            squawk=data.get(14, "1234"),
-            on_ground=data.get(8, False),
-        )
-
-
-class TestUserInterface(unittest.TestCase):
+class TestUserInterface:
     """Тесты для UserInterface."""
 
-    def setUp(self):
+    def setup_method(self):
         """Настройка перед каждым тестом."""
-        # Патчим зависимости с правильными путями
-        self.fetcher_patcher = patch("src.interface.user_interface.AircraftDataFetcher")
-        self.file_handler_patcher = patch(
-            "src.interface.user_interface.JSONFileHandler"
-        )
-        self.loggers_patcher = patch(
-            "src.interface.user_interface.loggers.create_logger"
-        )
+        # Мокаем логгер чтобы не создавать файлы
+        with patch("src.interface.user_interface.loggers.create_logger") as mock_logger:
+            mock_logger.return_value = MagicMock()
 
-        self.mock_fetcher = self.fetcher_patcher.start()
-        self.mock_file_handler = self.file_handler_patcher.start()
-        self.mock_create_logger = self.loggers_patcher.start()
+            # Мокаем AircraftDataFetcher
+            with patch(
+                "src.interface.user_interface.AircraftDataFetcher"
+            ) as MockFetcher:
+                # Мокаем JSONFileHandler
+                with patch(
+                    "src.interface.user_interface.JSONFileHandler"
+                ) as MockHandler:
+                    self.mock_fetcher = MockFetcher.return_value
+                    self.mock_handler = MockHandler.return_value
 
-        # Мокаем логгер
-        mock_logger = MagicMock()
-        self.mock_create_logger.return_value = mock_logger
-
-        # Создаем UI с моками
-        self.ui = UserInterface()
-        self.ui.logger = mock_logger  # Устанавливаем мок-логгер
-        self.ui.fetcher = self.mock_fetcher.return_value
-        self.ui.file_handler = self.mock_file_handler.return_value
-
-    def tearDown(self):
-        """Очистка после каждого теста."""
-        self.fetcher_patcher.stop()
-        self.file_handler_patcher.stop()
-        self.loggers_patcher.stop()
+                    # Создаем UI
+                    self.ui = UserInterface()
 
     def test_init(self):
-        """Тест инициализации интерфейса."""
-        ui = UserInterface()
-        self.assertIsNotNone(ui.fetcher)
-        self.assertIsNotNone(ui.file_handler)
-        self.assertIsNone(ui.current_data)
+        """Тест инициализации."""
+        assert self.ui is not None
+        assert hasattr(self.ui, "fetcher")
+        assert hasattr(self.ui, "file_handler")
+        assert hasattr(self.ui, "current_data")
+        assert self.ui.current_data is None
 
-    @patch("builtins.input", return_value="Germany")
+    def test_print_header(self, capsys):
+        """Тест вывода заголовка."""
+        self.ui.print_header("Тестовый заголовок")
+        captured = capsys.readouterr()
+
+        assert "=" * 60 in captured.out
+        assert "Тестовый заголовок" in captured.out
+
+    def test_print_menu(self, capsys):
+        """Тест вывода меню."""
+        self.ui.print_menu()
+        captured = capsys.readouterr()
+
+        # Проверяем основные пункты меню
+        assert "AVIATION TRACKER" in captured.out
+        assert "1. Получить информацию о самолетах по стране" in captured.out
+        assert "0. Выход" in captured.out
+
+    @patch("builtins.input", return_value="5")
+    def test_get_user_choice(self, mock_input):
+        """Тест получения выбора пользователя."""
+        choice = self.ui.get_user_choice()
+        assert choice == "5"
+
+    @patch("builtins.input")
     def test_get_country_from_user_valid(self, mock_input):
-        """Тест получения страны от пользователя (валидный ввод)."""
+        """Тест получения страны - валидный ввод."""
+        mock_input.return_value = "Germany"
         country = self.ui.get_country_from_user()
-        self.assertEqual(country, "Germany")
-        mock_input.assert_called_once_with("Страна: ")
+        assert country == "Germany"
 
     @patch("builtins.input", return_value="")
-    def test_get_country_from_user_empty(self, mock_input):
-        """Тест получения страны от пользователя (пустой ввод)."""
+    def test_get_country_from_user_empty(self, mock_input, capsys):
+        """Тест получения страны - пустой ввод."""
         country = self.ui.get_country_from_user()
-        self.assertIsNone(country)
+        assert country is None
 
-    @patch("builtins.input", return_value="5")
+        captured = capsys.readouterr()
+        assert "❌ Название страны не может быть пустым!" in captured.out
+
+    @patch("builtins.input", return_value="10")
     def test_get_number_from_user_valid(self, mock_input):
-        """Тест получения числа от пользователя (валидный ввод)."""
-        with patch("builtins.print"):
-            n = self.ui.get_number_from_user("Введите число: ")
-            self.assertEqual(n, 5)
+        """Тест получения числа - валидный ввод."""
+        number = self.ui.get_number_from_user("Введите число: ", 1, 20)
+        assert number == 10
 
-    @patch("builtins.input", return_value="0")
-    def test_get_number_from_user_too_small(self, mock_input):
-        """Тест получения числа от пользователя (слишком маленькое)."""
-        with patch("builtins.print") as mock_print:
-            n = self.ui.get_number_from_user("Введите число: ", min_val=1, max_val=10)
-            self.assertIsNone(n)
-            mock_print.assert_called_once()
+    @patch("builtins.input", return_value="")
+    def test_get_number_from_user_empty(self, mock_input):
+        """Тест получения числа - пустой ввод."""
+        number = self.ui.get_number_from_user("Введите число: ")
+        assert number is None
 
     @patch("builtins.input", return_value="abc")
-    def test_get_number_from_user_invalid(self, mock_input):
-        """Тест получения числа от пользователя (не число)."""
-        with patch("builtins.print") as mock_print:
-            n = self.ui.get_number_from_user("Введите число: ")
-            self.assertIsNone(n)
-            mock_print.assert_called_once()
+    def test_get_number_from_user_invalid(self, mock_input, capsys):
+        """Тест получения числа - нечисловой ввод."""
+        number = self.ui.get_number_from_user("Введите число: ")
+        assert number is None
 
-    @patch("builtins.input", return_value="Germany")
-    def test_handle_get_aircrafts_by_country_no_data(self, mock_input):
-        """Тест получения самолетов по стране (нет данных)."""
-        # Настраиваем мок fetcher
-        mock_result = {"aircraft_data": {"states": []}}
-        self.ui.fetcher.get_aircraft_data.return_value = mock_result
+        captured = capsys.readouterr()
+        assert "❌ Пожалуйста, введите целое число!" in captured.out
 
-        # Захватываем вывод
-        with patch("builtins.print") as mock_print:
-            # Запускаем тестируемый метод
-            self.ui.handle_get_aircrafts_by_country()
+    @patch("builtins.input", return_value="200")
+    def test_get_number_from_user_out_of_range(self, mock_input, capsys):
+        """Тест получения числа - вне диапазона."""
+        number = self.ui.get_number_from_user("Введите число: ", 1, 100)
+        assert number is None
 
-            # Проверяем что current_data не установлен
-            self.assertIsNone(self.ui.current_data)
+        captured = capsys.readouterr()
+        assert "❌ Число должно быть от 1 до 100!" in captured.out
 
-            # Проверяем вывод сообщения
-            found = False
-            for call in mock_print.call_args_list:
-                if call[0] and len(call[0]) > 0:
-                    if "В воздушном пространстве Germany нет самолетов" in str(
-                        call[0][0]
-                    ):
-                        found = True
-                        break
-            self.assertTrue(found)
-
-    @patch("builtins.input", side_effect=["yes"])
-    def test_handle_save_current_data_success(self, mock_input):
-        """Тест сохранения текущих данных (успех)."""
-        # Устанавливаем текущие данные
-        self.ui.current_data = [
-            MockAircraft(icao24="001", callsign="TEST1"),
-            MockAircraft(icao24="002", callsign="TEST2"),
-        ]
-
-        # Настраиваем мок file_handler
-        self.ui.file_handler.add_aircrafts.return_value = True
-
-        # Захватываем вывод
-        with patch("builtins.print") as mock_print:
-            # Запускаем тестируемый метод
-            self.ui.handle_save_current_data()
-
-            # Проверяем что данные сохранены
-            self.ui.file_handler.add_aircrafts.assert_called_once_with(
-                self.ui.current_data
-            )
-
-            # Проверяем вывод
-            found = False
-            for call in mock_print.call_args_list:
-                if call[0] and len(call[0]) > 0:
-                    if "Данные успешно сохранены" in str(call[0][0]):
-                        found = True
-                        break
-            self.assertTrue(found)
-
-    def test_handle_save_current_data_no_data(self):
-        """Тест сохранения текущих данных (нет данных)."""
-        # Убеждаемся что current_data пуст
-        self.ui.current_data = None
-
-        # Захватываем вывод
-        with patch("builtins.print") as mock_print:
-            # Запускаем тестируемый метод
-            self.ui.handle_save_current_data()
-
-            # Проверяем вывод сообщения об ошибке
-            found = False
-            for call in mock_print.call_args_list:
-                if call[0] and len(call[0]) > 0:
-                    if "Нет текущих данных для сохранения" in str(call[0][0]):
-                        found = True
-                        break
-            self.assertTrue(found)
-
-    @patch("builtins.input", side_effect=["yes"])
-    def test_handle_clear_all_data_success(self, mock_input):
-        """Тест очистки всех данных (успех)."""
-        # Настраиваем мок file_handler
-        self.ui.file_handler.clear_all_data.return_value = True
-
-        # Захватываем вывод
-        with patch("builtins.print") as mock_print:
-            # Запускаем тестируемый метод
-            self.ui.handle_clear_all_data()
-
-            # Проверяем что данные очищены
-            self.ui.file_handler.clear_all_data.assert_called_once()
-
-            # Проверяем вывод
-            found = False
-            for call in mock_print.call_args_list:
-                if call[0] and len(call[0]) > 0:
-                    if "Все данные успешно удалены" in str(call[0][0]):
-                        found = True
-                        break
-            self.assertTrue(found)
-
-    def test_handle_show_all_aircrafts_success(self):
-        """Тест показа всех самолетов (успех)."""
-        # Настраиваем мок file_handler
-        mock_aircrafts = [
-            {
-                "icao24": "001",
-                "callsign": "TEST1",
-                "origin_country": "USA",
-                "baro_altitude": 10000,
-                "velocity": 250,
-            },
-            {
-                "icao24": "002",
-                "callsign": "TEST2",
-                "origin_country": "Russia",
-                "baro_altitude": 9000,
-                "velocity": 230,
-            },
-        ]
-        self.ui.file_handler.get_all_aircrafts.return_value = mock_aircrafts
-
-        # Захватываем вывод
-        with patch("builtins.print") as mock_print:
-            # Запускаем тестируемый метод
-            self.ui.handle_show_all_aircrafts()
-
-            # Проверяем вывод
-            found = False
-            for call in mock_print.call_args_list:
-                if call[0] and len(call[0]) > 0:
-                    if "Всего сохранено 2 самолетов" in str(call[0][0]):
-                        found = True
-                        break
-            self.assertTrue(found)
-
-    @patch("builtins.input", side_effect=["abc123", "yes"])
-    def test_handle_delete_aircraft_success(self, mock_input):
-        """Тест удаления самолета (успех)."""
-        # Настраиваем мок file_handler
-        self.ui.file_handler.delete_aircraft.return_value = True
-
-        # Захватываем вывод
-        with patch("builtins.print") as mock_print:
-            # Запускаем тестируемый метод
-            self.ui.handle_delete_aircraft()
-
-            # Проверяем что самолет удален
-            self.ui.file_handler.delete_aircraft.assert_called_once_with("abc123")
-
-            # Проверяем вывод
-            found = False
-            for call in mock_print.call_args_list:
-                if call[0] and len(call[0]) > 0:
-                    if "Самолет успешно удален" in str(call[0][0]):
-                        found = True
-                        break
-            self.assertTrue(found)
-
-    @patch("sys.stdout", new_callable=io.StringIO)
-    def test_print_header(self, mock_stdout):
-        """Тест вывода заголовка."""
-        self.ui.print_header("ТЕСТОВЫЙ ЗАГОЛОВОК")
-
-        output = mock_stdout.getvalue()
-        self.assertIn("=" * 60, output)
-        self.assertIn("ТЕСТОВЫЙ ЗАГОЛОВОК", output)
-
-    def test_show_aircraft_info(self):
-        """Тест отображения информации о самолете."""
-        # Создаем тестовый самолет
-        aircraft = MockAircraft(
-            icao24="test123",
-            callsign="TEST01",
-            origin_country="Testland",
+    def test_show_aircraft_info(self, capsys):
+        """Тест вывода информации о самолете."""
+        plane = Aircraft(
+            icao24="A0B1C2",
+            callsign="SU123",
+            origin_country="Russia",
             baro_altitude=10000.0,
             velocity=250.0,
-            latitude=50.0,
-            longitude=30.0,
+            latitude=55.7558,
+            longitude=37.6173,
             on_ground=False,
-            squawk="1234",
+            squawk="7700",
         )
 
-        # Захватываем вывод
-        with patch("builtins.print") as mock_print:
-            # Запускаем тестируемый метод
-            self.ui.show_aircraft_info(aircraft)
+        self.ui.show_aircraft_info(plane)
+        captured = capsys.readouterr()
 
-            # Собираем весь вывод
-            all_output = []
-            for call in mock_print.call_args_list:
-                if call[0] and len(call[0]) > 0:
-                    all_output.append(str(call[0][0]))
+        assert "SU123" in captured.out
+        assert "A0B1C2" in captured.out
+        assert "Russia" in captured.out
+        assert "10000" in captured.out  # высота
+        assert "900" in captured.out  # скорость (250 * 3.6 = 900)
+        assert "55.76°N" in captured.out
+        assert "37.62°E" in captured.out
+        assert "В воздухе" in captured.out
+        assert "7700" in captured.out
 
-            full_output = " ".join(all_output)
+    @patch("builtins.input", return_value="Germany")
+    def test_handle_get_aircrafts_by_country_no_data(self, mock_input, capsys):
+        """Тест получения самолетов по стране - нет данных."""
+        self.mock_fetcher.get_aircraft_data.return_value = None
 
-            # Проверяем ключевые элементы
-            self.assertIn("TEST01", full_output)
-            self.assertIn("test123", full_output)
-            self.assertIn("Testland", full_output)
-            self.assertIn("10000", full_output)
+        self.ui.handle_get_aircrafts_by_country()
 
-    @patch("builtins.input", return_value="invalid")
-    def test_get_user_choice_invalid(self, mock_input):
-        """Тест получения неверного выбора пользователя."""
-        choice = self.ui.get_user_choice()
-        self.assertEqual(choice, "invalid")
+        captured = capsys.readouterr()
+        assert "Не удалось получить данные" in captured.out
 
-    def test_handle_show_statistics_empty(self):
-        """Тест показа статистики пустого файла."""
-        # Настраиваем мок file_handler
-        mock_stats = {
-            "total_aircrafts": 0,
-            "countries": {},
-            "file_location": "test.json",
+    @patch("builtins.input", return_value="Germany")
+    def test_handle_get_aircrafts_by_country_empty_data(self, mock_input, capsys):
+        """Тест получения самолетов по стране - пустые данные."""
+        self.mock_fetcher.get_aircraft_data.return_value = {
+            "aircraft_data": {"states": []}
         }
-        self.ui.file_handler.get_statistics.return_value = mock_stats
 
-        # Захватываем вывод
-        with patch("builtins.print") as mock_print:
-            # Запускаем тестируемый метод
-            self.ui.handle_show_statistics()
+        self.ui.handle_get_aircrafts_by_country()
 
-            # Проверяем вывод
-            found = False
-            for call in mock_print.call_args_list:
-                if call[0] and len(call[0]) > 0:
-                    if "Всего самолетов: 0" in str(call[0][0]):
-                        found = True
-                        break
-            self.assertTrue(found)
+        captured = capsys.readouterr()
+        assert "нет самолетов" in captured.out
+
+    @patch("builtins.input", side_effect=["5", "нет"])
+    def test_handle_show_top_aircrafts_success(self, mock_input, capsys):
+        """Тест показа топ самолетов - успех."""
+        test_data = [
+            {
+                "icao24": "A0B1C2",
+                "callsign": "SU123",
+                "origin_country": "Russia",
+                "baro_altitude": 10000.0,
+                "velocity": 250.0,
+            },
+            {
+                "icao24": "D3E4F5",
+                "callsign": "BA456",
+                "origin_country": "UK",
+                "baro_altitude": 8000.0,
+                "velocity": 200.0,
+            },
+        ]
+
+        self.mock_handler.get_top_aircrafts_by_altitude.return_value = test_data
+
+        self.ui.handle_show_top_aircrafts()
+
+        captured = capsys.readouterr()
+        assert "Топ 5 самолетов по высоте" in captured.out
+        assert "SU123" in captured.out
+        assert "A0B1C2" in captured.out
+
+        self.mock_handler.get_top_aircrafts_by_altitude.assert_called_once_with(5)
 
     @patch("builtins.input", return_value="5")
-    def test_handle_show_top_aircrafts_success(self, mock_input):
-        """Тест показа топ самолетов по высоте."""
-        # Настраиваем мок file_handler
-        mock_aircrafts = [
-            {"icao24": "001", "callsign": "TEST1", "baro_altitude": 12000},
-            {"icao24": "002", "callsign": "TEST2", "baro_altitude": 10000},
+    def test_handle_show_top_aircrafts_no_data(self, mock_input, capsys):
+        """Тест показа топ самолетов - нет данных."""
+        self.mock_handler.get_top_aircrafts_by_altitude.return_value = []
+
+        self.ui.handle_show_top_aircrafts()
+
+        captured = capsys.readouterr()
+        assert "нет самолетов" in captured.out
+
+    @patch("builtins.input", return_value="Russia")
+    def test_handle_find_aircrafts_by_country_success(self, mock_input, capsys):
+        """Тест поиска самолетов по стране - успех."""
+        test_data = [
+            {
+                "icao24": "A0B1C2",
+                "callsign": "SU123",
+                "origin_country": "Russia",
+                "baro_altitude": 10000.0,
+                "velocity": 250.0,
+            }
         ]
-        self.ui.file_handler.get_top_aircrafts_by_altitude.return_value = mock_aircrafts
 
-        # Захватываем вывод
-        with patch("builtins.print") as mock_print:
-            # Запускаем тестируемый метод
-            self.ui.handle_show_top_aircrafts()
+        self.mock_handler.get_aircrafts_by_country.return_value = test_data
 
-            # Проверяем вывод
-            found = False
-            for call in mock_print.call_args_list:
-                if call[0] and len(call[0]) > 0:
-                    if "Топ 5 самолетов по высоте" in str(call[0][0]):
-                        found = True
-                        break
-            self.assertTrue(found)
+        self.ui.handle_find_aircrafts_by_country()
 
-    @patch("builtins.input", return_value="USA")
-    def test_handle_find_aircrafts_by_country_success(self, mock_input):
-        """Тест поиска самолетов по стране."""
-        # Настраиваем мок file_handler
-        mock_aircrafts = [
-            {"icao24": "001", "callsign": "TEST1", "origin_country": "USA"}
+        captured = capsys.readouterr()
+        assert "Найдено 1 самолетов из Russia" in captured.out
+        assert "SU123" in captured.out
+
+        self.mock_handler.get_aircrafts_by_country.assert_called_once_with("Russia")
+
+    @patch("builtins.input", return_value="Germany")
+    def test_handle_find_aircrafts_by_country_no_data(self, mock_input, capsys):
+        """Тест поиска самолетов по стране - нет данных."""
+        self.mock_handler.get_aircrafts_by_country.return_value = []
+
+        self.ui.handle_find_aircrafts_by_country()
+
+        captured = capsys.readouterr()
+        assert "нет самолетов" in captured.out
+
+    @patch("builtins.input", side_effect=["да"])
+    def test_handle_save_current_data_success(self, mock_input, capsys):
+        """Тест сохранения текущих данных - успех."""
+        # Устанавливаем текущие данные
+        plane = Aircraft(icao24="A0B1C2", callsign="SU123", origin_country="Russia")
+        self.ui.current_data = [plane]
+
+        self.mock_handler.add_aircrafts.return_value = True
+
+        self.ui.handle_save_current_data()
+
+        captured = capsys.readouterr()
+        assert "Данные успешно сохранены" in captured.out
+
+        self.mock_handler.add_aircrafts.assert_called_once_with([plane])
+
+    @patch("builtins.input", side_effect=["нет"])
+    def test_handle_save_current_data_cancel(self, mock_input, capsys):
+        """Тест сохранения текущих данных - отмена."""
+        plane = Aircraft(icao24="A0B1C2", callsign="SU123", origin_country="Russia")
+        self.ui.current_data = [plane]
+
+        self.ui.handle_save_current_data()
+
+        captured = capsys.readouterr()
+        assert "Сохранение отменено" in captured.out
+
+        self.mock_handler.add_aircrafts.assert_not_called()
+
+    def test_handle_save_current_data_no_data(self, capsys):
+        """Тест сохранения текущих данных - нет данных."""
+        self.ui.current_data = None
+
+        self.ui.handle_save_current_data()
+
+        captured = capsys.readouterr()
+        assert "Нет текущих данных для сохранения" in captured.out
+
+    def test_handle_show_statistics_success(self, capsys):
+        """Тест показа статистики - успех."""
+        test_stats = {
+            "total_aircrafts": 10,
+            "countries": {"Russia": 5, "UK": 3, "Germany": 2},
+            "altitude_stats": {"min": 1000, "max": 12000, "average": 6000},
+            "speed_stats": {"min": 100, "max": 300, "average": 200},
+        }
+
+        self.mock_handler.get_statistics.return_value = test_stats
+
+        self.ui.handle_show_statistics()
+
+        captured = capsys.readouterr()
+        assert "Всего самолетов: 10" in captured.out
+        assert "Russia: 5 самолетов" in captured.out
+        assert "Минимальная: 1000 м" in captured.out
+        assert "360 км/ч" in captured.out  # 100 * 3.6
+
+    def test_handle_show_statistics_no_data(self, capsys):
+        """Тест показа статистики - нет данных."""
+        self.mock_handler.get_statistics.return_value = {}
+
+        self.ui.handle_show_statistics()
+
+        captured = capsys.readouterr()
+        assert "Нет сохраненных данных" in captured.out
+
+    @patch("builtins.input", side_effect=["да"])
+    def test_handle_clear_all_data_confirm(self, mock_input):
+        """Тест очистки всех данных - подтверждение."""
+        self.mock_handler.clear_all_data.return_value = True
+
+        self.ui.handle_clear_all_data()
+
+        self.mock_handler.clear_all_data.assert_called_once()
+
+    @patch("builtins.input", side_effect=["нет"])
+    def test_handle_clear_all_data_cancel(self, mock_input, capsys):
+        """Тест очистки всех данных - отмена."""
+        self.ui.handle_clear_all_data()
+
+        captured = capsys.readouterr()
+        assert "Очистка отменена" in captured.out
+
+        self.mock_handler.clear_all_data.assert_not_called()
+
+    def test_handle_show_all_aircrafts_success(self, capsys):
+        """Тест показа всех самолетов - успех."""
+        test_data = [
+            {
+                "icao24": "A0B1C2",
+                "callsign": "SU123",
+                "origin_country": "Russia",
+                "baro_altitude": 10000.0,
+                "velocity": 250.0,
+            },
+            {
+                "icao24": "D3E4F5",
+                "callsign": "BA456",
+                "origin_country": "UK",
+                "baro_altitude": 8000.0,
+                "velocity": 200.0,
+            },
         ]
-        self.ui.file_handler.get_aircrafts_by_country.return_value = mock_aircrafts
 
-        # Захватываем вывод
-        with patch("builtins.print") as mock_print:
-            # Запускаем тестируемый метод
-            self.ui.handle_find_aircrafts_by_country()
+        self.mock_handler.get_all_aircrafts.return_value = test_data
 
-            # Проверяем вывод
-            found = False
-            for call in mock_print.call_args_list:
-                if call[0] and len(call[0]) > 0:
-                    if "Найдено 1 самолетов из USA" in str(call[0][0]):
-                        found = True
-                        break
-            self.assertTrue(found)
+        self.ui.handle_show_all_aircrafts()
+
+        captured = capsys.readouterr()
+        assert "Всего сохранено 2 самолетов" in captured.out
+        assert "SU123" in captured.out
+        assert "BA456" in captured.out
+
+    def test_handle_show_all_aircrafts_no_data(self, capsys):
+        """Тест показа всех самолетов - нет данных."""
+        self.mock_handler.get_all_aircrafts.return_value = []
+
+        self.ui.handle_show_all_aircrafts()
+
+        captured = capsys.readouterr()
+        assert "Нет сохраненных данных" in captured.out
+
+    @patch("builtins.input", side_effect=["A0B1C2", "да"])
+    def test_handle_delete_aircraft_success(self, mock_input, capsys):
+        """Тест удаления самолета - успех."""
+        self.mock_handler.delete_aircraft.return_value = True
+
+        self.ui.handle_delete_aircraft()
+
+        captured = capsys.readouterr()
+        assert "Самолет успешно удален" in captured.out
+
+        self.mock_handler.delete_aircraft.assert_called_once_with("A0B1C2")
+
+    @patch("builtins.input", side_effect=["A0B1C2", "нет"])
+    def test_handle_delete_aircraft_cancel(self, mock_input, capsys):
+        """Тест удаления самолета - отмена."""
+        self.ui.handle_delete_aircraft()
+
+        captured = capsys.readouterr()
+        assert "Удаление отменено" in captured.out
+
+        self.mock_handler.delete_aircraft.assert_not_called()
+
+    @patch("builtins.input", side_effect=["A0B1C2", "да"])
+    def test_handle_delete_aircraft_not_found(self, mock_input, capsys):
+        """Тест удаления самолета - не найден."""
+        self.mock_handler.delete_aircraft.return_value = False
+
+        self.ui.handle_delete_aircraft()
+
+        captured = capsys.readouterr()
+        assert "Самолет не найден" in captured.out
+
+
+class TestUserInterfaceIntegration:
+    """Интеграционные тесты UserInterface."""
+
+    @patch("builtins.input")
+    @patch("sys.stdout", new_callable=StringIO)
+    def test_full_run_exit(self, mock_stdout, mock_input):
+        """Тест полного запуска с выходом."""
+        mock_input.side_effect = ["0"]  # Выход сразу
+
+        # Мокаем все зависимости
+        with patch("src.interface.user_interface.loggers.create_logger"):
+            with patch("src.interface.user_interface.AircraftDataFetcher"):
+                with patch("src.interface.user_interface.JSONFileHandler"):
+                    ui = UserInterface()
+                    ui.run()
+
+        output = mock_stdout.getvalue()
+        assert "AVIATION TRACKER" in output
+        assert "До свидания" in output
+
+
+# Тест главной функции
+def test_main_success():
+    """Тест главной функции - успех."""
+    with patch("src.interface.user_interface.UserInterface") as MockUI:
+        mock_ui_instance = MockUI.return_value
+        mock_ui_instance.run = MagicMock()
+
+        # Заменяем sys.exit чтобы не прерывать тест
+        with patch("sys.exit"):
+            from src.interface.user_interface import main
+
+            main()
+
+            mock_ui_instance.run.assert_called_once()
+
+
+def test_main_keyboard_interrupt():
+    """Тест главной функции - прерывание."""
+    with patch("src.interface.user_interface.UserInterface") as MockUI:
+        mock_ui_instance = MockUI.return_value
+        mock_ui_instance.run.side_effect = KeyboardInterrupt
+
+        with patch("sys.exit") as mock_exit:
+            from src.interface.user_interface import main
+
+            main()
+
+            mock_exit.assert_called_once_with(0)
+
+
+def test_main_exception():
+    """Тест главной функции - исключение."""
+    with patch("src.interface.user_interface.UserInterface") as MockUI:
+        mock_ui_instance = MockUI.return_value
+        mock_ui_instance.run.side_effect = Exception("Test error")
+
+        with patch("sys.exit") as mock_exit:
+            from src.interface.user_interface import main
+
+            main()
+
+            mock_exit.assert_called_once_with(1)
 
 
 if __name__ == "__main__":
-    unittest.main()
+    # Простой запуск тестов
+    import unittest
+
+    print("🧪 Запуск тестов UserInterface...")
+
+    # Создаем тестовый набор
+    loader = unittest.TestLoader()
+
+    # Находим все тестовые классы
+    test_classes = [TestUserInterface, TestUserInterfaceIntegration]
+
+    passed = 0
+    failed = 0
+
+    for test_class in test_classes:
+        print(f"\n📋 Тестируем {test_class.__name__}...")
+
+        # Создаем экземпляр тестового класса
+        tester = test_class()
+
+        # Находим все методы test_
+        test_methods = [
+            method
+            for method in dir(tester)
+            if method.startswith("test_") and callable(getattr(tester, method))
+        ]
+
+        for method_name in test_methods:
+            method = getattr(tester, method_name)
+            try:
+                # Вызываем setup_method если есть
+                if hasattr(tester, "setup_method"):
+                    tester.setup_method()
+
+                method()
+                print(f"  ✅ {method_name}")
+                passed += 1
+
+            except AssertionError as e:
+                print(f"  ❌ {method_name}: {e}")
+                failed += 1
+            except Exception as e:
+                print(f"  💥 {method_name}: {e}")
+                failed += 1
+
+    print(f"\n{'='*50}")
+    print(f"📊 Итог: {passed} прошло, {failed} упало")
+
+    if failed == 0:
+        print("🎉 Все тесты прошли успешно!")
+    else:
+        print("❌ Есть неудачные тесты")
